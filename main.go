@@ -1,13 +1,11 @@
 package main
 
 import (
-	//"crypto/rand"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 
-	//"mime"
 	"net/http"
 	"os"
 	"path/filepath"
