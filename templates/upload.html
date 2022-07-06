@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Upload File</title>
+        <link rel="stylesheet" href="static/styles.css">
+    </head>
+    <body>
+        <div class="frame">
+            <div class="center">
+                <div class="title">
+                    <h1>Drop file to upload</h1>
+                </div>
+                <form enctype="multipart/form-data" action="http://localhost:8080" method="post">
+                    <div class="dropzone">
+                    
+                        <img src="http://100dayscss.com/codepen/upload.svg" class="upload-icon" />
+                        <input type="file" class="upload-input" name="uploadFile" />
+                    </div>
+                    <input type="submit" value="upload" class="btn" />
+		        </form>
+            </div>
+        </div>
+    </body>
+</html>
+
