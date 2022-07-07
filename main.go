@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 
+	"errors"
 	"flag"
 	"net/http"
 	"os"
@@ -20,6 +21,11 @@ func main() {
 	url = *flag.String("url", "localhost:8080", "web site url")
 	uploadPath = *flag.String("path", "./files", "file upload path")
 	maxSize = *flag.Int64("maxSize", 2*1024*1024, "maximum size of the file")
+
+	err := os.MkdirAll(uploadPath, os.ModePerm)
+	if err != nil {
+		log.Printf("couldn't create path, %v", err)
+	}
 	http.HandleFunc("/", uploadFile)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	log.Printf("Server started on %v\n", url)
@@ -29,14 +35,21 @@ func main() {
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
-		t, _ := template.ParseFiles("static/upload.gohtml")
+		t, err := template.ParseFiles("static/upload.gohtml")
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+		}
 
-		t.Execute(w, nil)
+		err = t.Execute(w, nil)
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+		}
+
 		return
 	}
 
 	if err := r.ParseMultipartForm(maxSize); err != nil {
-		fmt.Printf("Could not parse multipart form: %v\n", err)
+		fmt.Printf("could not parse multipart form: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("CANT_PARSE_FORM"))
 		return
@@ -74,31 +87,37 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 
 	// write file
 
-	result := saveFile(fileContent, newPath)
-	if !result {
+	err = saveFile(fileContent, newPath)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("CANT_SAVE_FILE"))
+		log.Fatal(err)
 		return
 	} else {
-		fmt.Fprintln(w, "File was successfully uploaded!")
-		fmt.Fprintf(w, "FileType: %s, File: %s\n", fileType, newPath)
-		fmt.Fprintf(w, "File size (bytes): %v\n", fileSize)
+		t, err := template.ParseFiles("static/upload.gohtml")
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+		}
+		mes := struct{ Message string }{Message: "File  was successfully added!\n"}
+		err = t.Execute(w, mes)
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+
+		}
 	}
 }
 
-func saveFile(content []byte, path string) bool {
+func saveFile(content []byte, path string) error {
 	file, err := os.Create(path)
 	if err != nil {
-		fmt.Println("Counldn't create file")
-		return false
+		return errors.New("couldn't create file")
 	}
 
 	defer file.Close()
 
 	_, err = file.Write(content)
 	if err != nil {
-		fmt.Println("Counldn't write to file")
-		return false
+		return errors.New("counldn't write to file")
 	}
-	return true
+	return nil
 }
