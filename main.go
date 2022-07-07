@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"log"
 
 	"flag"
@@ -57,7 +57,7 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("FILE_TOO_BIG"))
 		return
 	}
-	fileContent, err := ioutil.ReadAll(file)
+	fileContent, err := io.ReadAll(file)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("INVALID_FILE"))
