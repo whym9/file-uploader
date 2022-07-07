@@ -98,7 +98,7 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.ServeFile(w, r, "static/error.html")
 		}
-		mes := struct{ Message string }{Message: "File  was successfully added!\n"}
+		mes := struct{ Message string }{Message: "File " + newPath + " was successfully added!\n"}
 		err = t.Execute(w, mes)
 		if err != nil {
 			http.ServeFile(w, r, "static/error.html")
