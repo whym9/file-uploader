@@ -6,26 +6,30 @@ import (
 	"io/ioutil"
 	"log"
 
+	"flag"
 	"net/http"
 	"os"
 	"path/filepath"
 )
 
-const maxSize = 2 * 1024 * 1024 // 2 mb
-const uploadPath = "./files"
+var maxSize int64
+var uploadPath string
+var url string
 
 func main() {
-
+	url = *flag.String("url", "localhost:8080", "web site url")
+	uploadPath = *flag.String("path", "./files", "file upload path")
+	maxSize = *flag.Int64("maxSize", 2*1024*1024, "maximum size of the file")
 	http.HandleFunc("/", uploadFile)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	log.Print("Server started on localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("Server started on %v\n", url)
+	log.Fatal(http.ListenAndServe(url, nil))
 }
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
-		t, _ := template.ParseFiles("static/upload.html")
+		t, _ := template.ParseFiles("static/upload.gohtml")
 
 		t.Execute(w, nil)
 		return
