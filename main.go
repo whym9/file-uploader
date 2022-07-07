@@ -1,13 +1,11 @@
 package main
 
 import (
-	//"crypto/rand"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 
-	//"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,8 +15,9 @@ const maxSize = 2 * 1024 * 1024 // 2 mb
 const uploadPath = "./files"
 
 func main() {
+
 	http.HandleFunc("/", uploadFile)
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("templates/static"))))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	log.Print("Server started on localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -26,7 +25,7 @@ func main() {
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
-		t, _ := template.ParseFiles("templates/upload.html")
+		t, _ := template.ParseFiles("static/upload.html")
 
 		t.Execute(w, nil)
 		return
