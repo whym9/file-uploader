@@ -24,7 +24,7 @@ func main() {
 
 	err := os.MkdirAll(uploadPath, os.ModePerm)
 	if err != nil {
-		log.Printf("couldn't create path, %v", err)
+		log.Fatalf("couldn't create path, %v", err)
 	}
 	http.HandleFunc("/", uploadFile)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
