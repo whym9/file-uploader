@@ -5,12 +5,18 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"time"
 
 	"errors"
 	"flag"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+	zmq "github.com/pebbe/zmq4"
 )
 
 var maxSize int64
@@ -78,14 +84,25 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileType := http.DetectContentType(fileContent)
+	if fileType != "application/octet-stream" {
+		t, err := template.ParseFiles("static/upload.gohtml")
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+		}
+		mes := struct{ Message string }{Message: "Wrong file type!"}
+		err = t.Execute(w, mes)
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+
+		}
+		return
+	}
 
 	fileName := fileHeader.Filename
 
 	newPath := filepath.Join(uploadPath, fileName)
 	fmt.Printf("FileType: %s, File: %s\n", fileType, newPath)
 	fmt.Printf("File size (bytes): %v\n", fileSize)
-
-	// write file
 
 	err = saveFile(fileContent, newPath)
 	if err != nil {
@@ -98,12 +115,15 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.ServeFile(w, r, "static/error.html")
 		}
-		mes := struct{ Message string }{Message: "File " + newPath + " was successfully added!\n"}
+		mes := struct{ Message string }{Message: "File " + fileName + " was successfully added!\n"}
 		err = t.Execute(w, mes)
 		if err != nil {
 			http.ServeFile(w, r, "static/error.html")
 
 		}
+		countTCPAndUDP(newPath)
+		go zeroMQSend(newPath)
+		return
 	}
 }
 
@@ -120,4 +140,99 @@ func saveFile(content []byte, path string) error {
 		return errors.New("counldn't write to file")
 	}
 	return nil
+}
+
+var (
+	counter map[string]int = map[string]int{"TCP": 0, "UDP": 0}
+
+	eth layers.Ethernet
+	ip4 layers.IPv4
+	ip6 layers.IPv6
+	tcp layers.TCP
+	udp layers.UDP
+	dns layers.DNS
+)
+
+func countTCPAndUDP(file string) {
+	parser := gopacket.NewDecodingLayerParser(
+		layers.LayerTypeEthernet,
+		&eth,
+		&ip4,
+		&ip6,
+		&tcp,
+		&udp,
+		&dns,
+	)
+
+	handle, err := pcap.OpenOffline(file)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer handle.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	decoded := make([]gopacket.LayerType, 0, 10)
+	for {
+		data, _, err := handle.ZeroCopyReadPacketData()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+
+		parser.DecodeLayers(data, &decoded)
+
+		for _, layer := range decoded {
+			if layer == layers.LayerTypeTCP {
+				counter["TCP"]++
+			}
+			if layer == layers.LayerTypeUDP {
+				counter["UDP"]++
+			}
+		}
+	}
+
+	print(counter)
+}
+
+func print(arg map[string]int) {
+	fmt.Println("Amounts of TCP and UDP:")
+	for protocol, amount := range arg {
+		fmt.Printf("%v: %v\n", protocol, amount)
+	}
+}
+
+func zeroMQSend(name string) {
+	handle, err := pcap.OpenOffline(name)
+
+	if err != nil {
+		panic(err)
+	}
+	defer handle.Close()
+
+	x := zmq.PUB
+	socket, _ := zmq.NewSocket(x)
+
+	defer socket.Close()
+	socket.Bind("tcp://*:5556")
+
+	fmt.Println("Sending messages on port 5556")
+
+	for {
+		data, _, err := handle.ZeroCopyReadPacketData()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		socket.SendBytes(data, 0)
+		time.Sleep(500 * time.Millisecond)
+	}
+	fmt.Println("Stopped sending file")
 }
