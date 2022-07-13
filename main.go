@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"sync"
 	"time"
 
 	"errors"
@@ -36,7 +37,10 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	log.Printf("Server started on %v\n", url)
 	log.Fatal(http.ListenAndServe(url, nil))
+
 }
+
+var wg sync.WaitGroup
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 
@@ -121,8 +125,11 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, "static/error.html")
 
 		}
-		countTCPAndUDP(newPath)
+		//countTCPAndUDP(newPath)
+
+		wg.Add(1)
 		go zeroMQSend(newPath)
+		wg.Wait()
 		return
 	}
 }
@@ -216,7 +223,10 @@ func zeroMQSend(name string) {
 	defer handle.Close()
 
 	x := zmq.PUB
-	socket, _ := zmq.NewSocket(x)
+	socket, err := zmq.NewSocket(x)
+	if err != nil {
+		log.Fatal()
+	}
 
 	defer socket.Close()
 	socket.Bind("tcp://*:5556")
@@ -235,4 +245,5 @@ func zeroMQSend(name string) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	fmt.Println("Stopped sending file")
+	wg.Done()
 }
