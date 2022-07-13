@@ -5,8 +5,7 @@ import (
 	"html/template"
 	"io"
 	"log"
-
-	//"mime/multipart"
+	"time"
 
 	"errors"
 	"flag"
@@ -17,6 +16,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	zmq "github.com/pebbe/zmq4"
 )
 
 var maxSize int64
@@ -104,8 +104,6 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("FileType: %s, File: %s\n", fileType, newPath)
 	fmt.Printf("File size (bytes): %v\n", fileSize)
 
-	// write file
-
 	err = saveFile(fileContent, newPath)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -124,6 +122,7 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 
 		}
 		countTCPAndUDP(newPath)
+		go zeroMQSend(newPath)
 		return
 	}
 }
@@ -206,4 +205,34 @@ func print(arg map[string]int) {
 	for protocol, amount := range arg {
 		fmt.Printf("%v: %v\n", protocol, amount)
 	}
+}
+
+func zeroMQSend(name string) {
+	handle, err := pcap.OpenOffline(name)
+
+	if err != nil {
+		panic(err)
+	}
+	defer handle.Close()
+
+	x := zmq.PUB
+	socket, _ := zmq.NewSocket(x)
+
+	defer socket.Close()
+	socket.Bind("tcp://*:5556")
+
+	fmt.Println("Sending messages on port 5556")
+
+	for {
+		data, _, err := handle.ZeroCopyReadPacketData()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		socket.SendBytes(data, 0)
+		time.Sleep(500 * time.Millisecond)
+	}
+	fmt.Println("Stopped sending file")
 }
