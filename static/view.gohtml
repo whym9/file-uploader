@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet" >
+<link href="static/styles2.css" rel="stylesheet">
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+</html>
+
+<body>
+<div class="container register-form">
+            <div class="form">
+                <div class="note">
+                    <p>Results</p>
+                </div>
+             
+                    <div class="form-content">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <p class="form-control">TCP: {{.TCP}} </p>
+                                </div>
+                                <div class="form-group">
+                                    <p class="form-control">UDP: {{.UDP}} </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                  <div class="form-group">
+                                    <p class="form-control">IPv4: {{.IPv4}} </p>
+                                </div>
+                                <div class="form-group">
+                                    <p class="form-control">IPv6: {{.IPv6}} </p>
+                                </div>
+                            </div>
+                        </div> 
+                        
+                    </div>
+                <form method="POST" enctype="multipart/form-data">
+                <input type="submit" value="go back" name="register">
+                </form>
+            </div>
+        </div>
+        
+</body>

@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+
 	"sync"
 	"time"
 
@@ -34,6 +35,7 @@ func main() {
 		log.Fatalf("couldn't create path, %v", err)
 	}
 	http.HandleFunc("/", uploadFile)
+	http.HandleFunc("/results", results)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	log.Printf("Server started on %v\n", url)
 	log.Fatal(http.ListenAndServe(url, nil))
@@ -115,18 +117,18 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 		return
 	} else {
-		t, err := template.ParseFiles("static/upload.gohtml")
-		if err != nil {
-			http.ServeFile(w, r, "static/error.html")
-		}
-		mes := struct{ Message string }{Message: "File " + fileName + " was successfully added!\n"}
-		err = t.Execute(w, mes)
-		if err != nil {
-			http.ServeFile(w, r, "static/error.html")
+		// t, err := template.ParseFiles("static/upload.gohtml")
+		// if err != nil {
+		// 	http.ServeFile(w, r, "static/error.html")
+		// }
+		// mes := struct{ Message string }{Message: "File " + fileName + " was successfully added!\n"}
+		// err = t.Execute(w, mes)
+		// if err != nil {
+		// 	http.ServeFile(w, r, "static/error.html")
 
-		}
-		//countTCPAndUDP(newPath)
-
+		// }
+		countTCPAndUDP(newPath)
+		http.Redirect(w, r, "/results", http.StatusSeeOther)
 		wg.Add(1)
 		go zeroMQSend(newPath)
 		wg.Wait()
@@ -150,8 +152,6 @@ func saveFile(content []byte, path string) error {
 }
 
 var (
-	counter map[string]int = map[string]int{"TCP": 0, "UDP": 0}
-
 	eth layers.Ethernet
 	ip4 layers.IPv4
 	ip6 layers.IPv6
@@ -159,6 +159,15 @@ var (
 	udp layers.UDP
 	dns layers.DNS
 )
+
+type Protocols struct {
+	TCP  int
+	UDP  int
+	IPv4 int
+	IPv6 int
+}
+
+var counter Protocols
 
 func countTCPAndUDP(file string) {
 	parser := gopacket.NewDecodingLayerParser(
@@ -196,17 +205,38 @@ func countTCPAndUDP(file string) {
 
 		for _, layer := range decoded {
 			if layer == layers.LayerTypeTCP {
-				counter["TCP"]++
+				counter.TCP++
 			}
 			if layer == layers.LayerTypeUDP {
-				counter["UDP"]++
+				counter.UDP++
+			}
+			if layer == layers.LayerTypeIPv4 {
+				counter.IPv4++
+			}
+			if layer == layers.LayerTypeIPv6 {
+				counter.IPv6++
 			}
 		}
 	}
 
-	print(counter)
 }
+func results(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		t, err := template.ParseFiles("static/view.gohtml")
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+		}
 
+		err = t.Execute(w, counter)
+		if err != nil {
+			http.ServeFile(w, r, "static/error.html")
+		}
+
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
 func print(arg map[string]int) {
 	fmt.Println("Amounts of TCP and UDP:")
 	for protocol, amount := range arg {
