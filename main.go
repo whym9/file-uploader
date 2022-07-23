@@ -6,14 +6,17 @@ import (
 	"io"
 	"log"
 
-	"sync"
-	"time"
-
 	"errors"
 	"flag"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -25,6 +28,22 @@ var maxSize int64
 var uploadPath string
 var url string
 
+func recordMetrics() {
+	go func() {
+		for {
+			opsProcessed.Inc()
+			time.Sleep(2 * time.Second)
+		}
+	}()
+}
+
+var (
+	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "myapp_processed_ops_total",
+		Help: "The total number of processed events",
+	})
+)
+
 func main() {
 	url = *flag.String("url", "localhost:8080", "web site url")
 	uploadPath = *flag.String("path", "./files", "file upload path")
@@ -34,6 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("couldn't create path, %v", err)
 	}
+	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", uploadFile)
 	http.HandleFunc("/results", results)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
