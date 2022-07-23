@@ -53,6 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("couldn't create path, %v", err)
 	}
+	recordMetrics()
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", uploadFile)
 	http.HandleFunc("/results", results)
